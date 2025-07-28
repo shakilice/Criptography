@@ -1,182 +1,92 @@
-#include <iostream>
-#include <cstring>
-
-#define BLOCK_SIZE 4
-
+#include<bits/stdc++.h>
 using namespace std;
-
-// Encrypt a block using a simple shift cipher
-void encrypt_block(unsigned char* block, int key) {
-    for (int i = 0; i < BLOCK_SIZE; i++) {
-        block[i] = (block[i] + key) % 256;
+//B represent number of bit in one block
+const int B=16;
+string byte_to_string(vector<bitset<B> > v){
+    string ans="";
+    for(int i=0;i<v.size();i++){
+        bitset<B> b=v[i];
+        int c=0;
+        for(int i=0;i<B;i++){
+         int d=pow(2,i);
+         c+=(d*b[i]);
+        }
+        ans+=(char)c;
     }
+    return ans;
 }
-
-// Decrypt a block using a simple shift cipher
-void decrypt_block(unsigned char* block, int key) {
-    for (int i = 0; i < BLOCK_SIZE; i++) {
-        block[i] = (block[i] - key + 256) % 256;
+vector<bitset<B> > string_to_byte(string s){
+    vector<bitset<B> > ans;
+    for(int i=0;i<s.size();i++){
+        int c=(int)s[i];
+        bitset<B> b(c);
+        ans.push_back(b);
     }
+    return ans;
 }
-
-// XOR two byte blocks
-void xor_bytes(unsigned char* out, const unsigned char* a, const unsigned char* b) {
-    for (int i = 0; i < BLOCK_SIZE; i++) {
-        out[i] = a[i] ^ b[i];
+bitset<B> XOR(bitset<B> b1,bitset<B> b2){
+    bitset<B> b=(b1^b2);
+    return b;
+}
+bitset<B> ran_dom(){
+    int a=9;//this valu any zero to 255 if B=8 bit
+    bitset<B> b(a);
+    return b;
+}
+bitset<B> key_to_byte(string key){
+  bitset<B> b;
+  int c=-1;
+  for(int i=0;i<key.size();i++){
+    bitset<8> a((int)key[i]);
+    for(int j=0;j<8;j++){
+        c++;
+        b[c]=a[j];
     }
+  }
+  return b;
+}
+string encrip(string s,string key){
+     cout<<1<<endl;
+    bitset<B> iv=ran_dom();
+   vector<bitset<B> > v=string_to_byte(s);
+   vector<bitset<B> > ans;
+   bitset<B> k=key_to_byte(key);
+   for(int i=0;i<v.size();i++){
+     bitset<B> a=XOR(v[i],iv);
+     bitset<B> b=XOR(k,a);
+     iv=b;
+     ans.push_back(b);
+   }
+   cout<<"encripted bits stream is:"<<endl;
+   for(int i=0;i<ans.size();i++)cout<<ans[i];
+   cout<<endl;
+   string tm=byte_to_string(ans);
+   return tm;
+}
+string decript(string s,string key){
+    bitset<B> iv=ran_dom();
+   vector<bitset<B> > v=string_to_byte(s);
+   vector<bitset<B> > ans;
+   bitset<B> k=key_to_byte(key);
+   for(int i=0;i<v.size();i++){
+     bitset<B> a=XOR(v[i],k);
+     bitset<B> b=XOR(iv,a);
+     iv=v[i];
+     ans.push_back(b);
+   }
+   for(int i=0;i<ans.size();i++){
+    cout<<ans[i]<<endl;
+   }
+   string tm=byte_to_string(ans);
+   return tm;
 }
 
-// Pad data to multiple of BLOCK_SIZE with 0x00
-int pad(const unsigned char* input, int len, unsigned char* padded) {
-    int padding_len = BLOCK_SIZE - (len % BLOCK_SIZE);
-    int total_len = len + padding_len;
-    for (int i = 0; i < len; i++) padded[i] = input[i];
-    for (int i = len; i < total_len; i++) padded[i] = 0x00;
-    return total_len;
-}
-
-// Remove trailing 0x00
-int unpad(unsigned char* data, int len) {
-    while (len > 0 && data[len - 1] == 0x00) len--;
-    return len;
-}
-
-// ECB Mode
-int encrypt_ecb(const unsigned char* plaintext, int len, int key, unsigned char* ciphertext) {
-    int padded_len = pad(plaintext, len, ciphertext);
-    for (int i = 0; i < padded_len; i += BLOCK_SIZE)
-        encrypt_block(ciphertext + i, key);
-    return padded_len;
-}
-
-int decrypt_ecb(const unsigned char* ciphertext, int len, int key, unsigned char* plaintext) {
-    memcpy(plaintext, ciphertext, len);
-    for (int i = 0; i < len; i += BLOCK_SIZE)
-        decrypt_block(plaintext + i, key);
-    return unpad(plaintext, len);
-}
-
-// CBC Mode
-int encrypt_cbc(const unsigned char* plaintext, int len, int key, const unsigned char* iv, unsigned char* ciphertext) {
-    unsigned char padded[256];
-    int padded_len = pad(plaintext, len, padded);
-    unsigned char prev[BLOCK_SIZE];
-    memcpy(prev, iv, BLOCK_SIZE);
-
-    for (int i = 0; i < padded_len; i += BLOCK_SIZE) {
-        unsigned char block[BLOCK_SIZE];
-        xor_bytes(block, padded + i, prev);
-        encrypt_block(block, key);
-        memcpy(ciphertext + i, block, BLOCK_SIZE);
-        memcpy(prev, block, BLOCK_SIZE);
-    }
-    return padded_len;
-}
-
-int decrypt_cbc(const unsigned char* ciphertext, int len, int key, const unsigned char* iv, unsigned char* plaintext) {
-    unsigned char prev[BLOCK_SIZE];
-    memcpy(prev, iv, BLOCK_SIZE);
-
-    for (int i = 0; i < len; i += BLOCK_SIZE) {
-        unsigned char block[BLOCK_SIZE];
-        memcpy(block, ciphertext + i, BLOCK_SIZE);
-        decrypt_block(block, key);
-        xor_bytes(plaintext + i, block, prev);
-        memcpy(prev, ciphertext + i, BLOCK_SIZE);
-    }
-    return unpad(plaintext, len);
-}
-
-// CFB Mode
-int encrypt_cfb(const unsigned char* plaintext, int len, int key, const unsigned char* iv, unsigned char* ciphertext) {
-    unsigned char padded[256];
-    int padded_len = pad(plaintext, len, padded);
-    unsigned char feedback[BLOCK_SIZE];
-    memcpy(feedback, iv, BLOCK_SIZE);
-
-    for (int i = 0; i < padded_len; i += BLOCK_SIZE) {
-        unsigned char temp[BLOCK_SIZE];
-        memcpy(temp, feedback, BLOCK_SIZE);
-        encrypt_block(temp, key);
-        xor_bytes(ciphertext + i, padded + i, temp);
-        memcpy(feedback, ciphertext + i, BLOCK_SIZE);
-    }
-    return padded_len;
-}
-
-int decrypt_cfb(const unsigned char* ciphertext, int len, int key, const unsigned char* iv, unsigned char* plaintext) {
-    unsigned char feedback[BLOCK_SIZE];
-    memcpy(feedback, iv, BLOCK_SIZE);
-
-    for (int i = 0; i < len; i += BLOCK_SIZE) {
-        unsigned char temp[BLOCK_SIZE];
-        memcpy(temp, feedback, BLOCK_SIZE);
-        encrypt_block(temp, key);
-        xor_bytes(plaintext + i, ciphertext + i, temp);
-        memcpy(feedback, ciphertext + i, BLOCK_SIZE);
-    }
-    return unpad(plaintext, len);
-}
-
-// OFB Mode
-int encrypt_ofb(const unsigned char* plaintext, int len, int key, const unsigned char* iv, unsigned char* ciphertext) {
-    unsigned char padded[256];
-    int padded_len = pad(plaintext, len, padded);
-    unsigned char feedback[BLOCK_SIZE];
-    memcpy(feedback, iv, BLOCK_SIZE);
-
-    for (int i = 0; i < padded_len; i += BLOCK_SIZE) {
-        encrypt_block(feedback, key);
-        xor_bytes(ciphertext + i, padded + i, feedback);
-    }
-    return padded_len;
-}
-
-int decrypt_ofb(const unsigned char* ciphertext, int len, int key, const unsigned char* iv, unsigned char* plaintext) {
-    unsigned char feedback[BLOCK_SIZE];
-    memcpy(feedback, iv, BLOCK_SIZE);
-
-    for (int i = 0; i < len; i += BLOCK_SIZE) {
-        encrypt_block(feedback, key);
-        xor_bytes(plaintext + i, ciphertext + i, feedback);
-    }
-    return unpad(plaintext, len);
-}
-
-int main() {
-    unsigned char message[] = "Hello Block Modes!";
-    int message_len = strlen((char*)message);
-    unsigned char iv[BLOCK_SIZE] = {1, 2, 3, 4};
-    int key = 5;
-
-    unsigned char encrypted[256], decrypted[256];
-    int cipher_len, plain_len;
-
-    cout << "Original: " << message << endl;
-
-    cout << "\n--- ECB ---" << endl;
-    cipher_len = encrypt_ecb(message, message_len, key, encrypted);
-    plain_len = decrypt_ecb(encrypted, cipher_len, key, decrypted);
-    decrypted[plain_len] = '\0';
-    cout << "Decrypted: " << decrypted << endl;
-
-    cout << "\n--- CBC ---" << endl;
-    cipher_len = encrypt_cbc(message, message_len, key, iv, encrypted);
-    plain_len = decrypt_cbc(encrypted, cipher_len, key, iv, decrypted);
-    decrypted[plain_len] = '\0';
-    cout << "Decrypted: " << decrypted << endl;
-
-    cout << "\n--- CFB ---" << endl;
-    cipher_len = encrypt_cfb(message, message_len, key, iv, encrypted);
-    plain_len = decrypt_cfb(encrypted, cipher_len, key, iv, decrypted);
-    decrypted[plain_len] = '\0';
-    cout << "Decrypted: " << decrypted << endl;
-
-    cout << "\n--- OFB ---" << endl;
-    cipher_len = encrypt_ofb(message, message_len, key, iv, encrypted);
-    plain_len = decrypt_ofb(encrypted, cipher_len, key, iv, decrypted);
-    decrypted[plain_len] = '\0';
-    cout << "Decrypted: " << decrypted << endl;
-
+int main(){
+      string s="Amishakilahammed lets break this";
+      string key="RT";
+      string a=encrip(s,key);
+      string b=decript(a,key);
+      cout<<"Decript message is:"<<endl;
+      cout<<b<<endl;
     return 0;
 }
