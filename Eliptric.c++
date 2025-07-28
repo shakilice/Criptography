@@ -1,24 +1,29 @@
-#include <iostream>
-#include <utility>
-#include <stdexcept>
-
+#include<bits/stdc++.h>
+#define ll long long int
+#define en "\n"
 using namespace std;
-
-using Point = pair<int, int>;
-const Point INF = {-1, -1};
-
-int modinv(int a, int p) {
-    int t = 0, newt = 1, r = p, newr = a;
-    while (newr != 0) {
-        int q = r / newr;
-        tie(t, newt) = make_pair(newt, t - q * newt);
-        tie(r, newr) = make_pair(newr, r - q * newr);
+using Point= pair<int,int>;
+const pair<int,int> INF={0,0};
+int modinv(int a, int m) {
+    if(__gcd(a,m)!=1)return -1;
+    int m0 = m;
+    int x0 = 0, x1 = 1;
+    if (m == 1)
+        return 0;
+    while (a > 1) {
+        int q = a / m;
+        int t = m;
+        m = a % m;
+        a = t;
+        int temp = x0;
+        x0 = x1 - q * x0;
+        x1 = temp;
     }
-    if (r > 1) throw runtime_error("No inverse");
-    if (t < 0) t += p;
-    return t;
+    if (x1 < 0)
+        x1 += m0;
+   // cout<<x1<<en;
+    return x1;
 }
-
 Point add(Point P, Point Q, int a, int p) {
     if (P == INF) return Q;
     if (Q == INF) return P;
@@ -26,7 +31,7 @@ Point add(Point P, Point Q, int a, int p) {
     int x1 = P.first, y1 = P.second;
     int x2 = Q.first, y2 = Q.second;
 
-    if (x1 == x2 && (y1 + y2) % p == 0) return INF;
+    if (x1 == x2&&(y1+y2)%p==0) return INF;
 
     int m;
     if (P == Q) {
@@ -42,7 +47,8 @@ Point add(Point P, Point Q, int a, int p) {
     int x3 = (m * m - x1 - x2 + p + p) % p;
     int y3 = (m * (x1 - x3) - y1 + p) % p;
 
-    return {x3, y3};
+    return {(x3+p)%p, (y3+p)%p};
+    
 }
 
 Point multiply(Point P, int k, int a, int p) {
@@ -55,54 +61,23 @@ Point multiply(Point P, int k, int a, int p) {
     return R;
 }
 
-// Encode a small integer as a point on the curve (brute force trial)
-Point encode_message(int m, int a, int b, int p) {
-    for (int x = m * 10; x < m * 10 + 10; ++x) {
-        int rhs = (x * x * x + a * x + b) % p;
-        for (int y = 0; y < p; ++y) {
-            if ((y * y) % p == rhs)
-                return {x, y};
-        }
-    }
-    throw runtime_error("Failed to encode message");
-}
-
-// ECC ElGamal Encryption
-pair<Point, Point> encrypt(Point M, Point Q, Point G, int a, int p, int k) {
-    Point C1 = multiply(G, k, a, p);
-    Point kQ = multiply(Q, k, a, p);
-    Point C2 = add(M, kQ, a, p);
-    return {C1, C2};
-}
-
-// ECC ElGamal Decryption
-Point decrypt(pair<Point, Point> cipher, int d, int a, int p) {
-    Point C1 = cipher.first;
-    Point C2 = cipher.second;
-    Point dC1 = multiply(C1, d, a, p);
-    Point neg_dC1 = {dC1.first, (-dC1.second + p) % p};
-    return add(C2, neg_dC1, a, p);
-}
-int main() {
-    int a = 2, b = 3, p = 97;
-    Point G = {3, 6}; // base point
-
-    // Alice's private and public key
-    int d = 5; // private
-    Point Q = multiply(G, d, a, p); // public
-
-    int message = 7; // simple integer message
-    Point M = encode_message(message, a, b, p);
-
-    cout << "Original message encoded as point: (" << M.first << ", " << M.second << ")\n";
-
-    int k = 10; // random ephemeral key (Bob chooses)
-    auto cipher = encrypt(M, Q, G, a, p, k);
-
-    cout << "Encrypted: C1=(" << cipher.first.first << ", " << cipher.first.second << ") ";
-    cout << "C2=(" << cipher.second.first << ", " << cipher.second.second << ")\n";
-
-    Point decrypted = decrypt(cipher, d, a, p);
-    cout << "Decrypted point: (" << decrypted.first << ", " << decrypted.second << ")\n";
+int main(){
+    int p=13,a=1,b=2;
+    Point g={7,1};
+     cout<<"Enter the Alice private key"<<en;
+     int A;
+     cin>>A;
+     Point pa=multiply(g,A, a, p);
+     cout<<pa.first<<" "<<pa.second<<en;
+     cout<<"enter the bob privet key"<<en;
+     int B;
+     cin>>B;
+     Point pb=multiply(g,B,a,p);
+     cout<<pb.first<<" "<<pb.second<<en;
+     Point k1=multiply(pb,A,a,p);
+     Point k2=multiply(pa,B,a,p);
+     cout<<"shared key k1 and k2 is:"<<en;
+     cout<<"k1 "<<k1.first<<" "<<k1.second<<en;
+     cout<<"k2 "<<k2.first<<" "<<k2.second<<en;
     return 0;
 }
